@@ -55,6 +55,10 @@ export async function POST(req: NextRequest) {
 			// Strict policy: treat most "likely_human" under a high bar as AI
 			const strictMode = (process.env.DETECTOR_STRICT_MODE || "true").toLowerCase() !== "false";
 			const humanStrictThreshold = Number(process.env.DETECTOR_HUMAN_STRICT_THRESHOLD || 95);
+			// Outreach/salesy heuristic (helps with short, generic outreach language)
+			const heuristicSalesy = (process.env.DETECTOR_HEURISTIC_SALESY || "true").toLowerCase() !== "false";
+			const heuristicThreshold = Number(process.env.DETECTOR_HEURISTIC_THRESHOLD || 0.5);
+			const heuristicMaxLen = Number(process.env.DETECTOR_HEURISTIC_MAX_LEN || 400);
 
 			const makeChunks = (input: string): string[] => {
 				const maxChunks = Number(process.env.DETECTOR_MAX_CHUNKS || 4);
@@ -68,6 +72,7 @@ export async function POST(req: NextRequest) {
 			};
 			const chunks = makeChunks(text);
 
+			type ScoredCandidate = { label: string; score: number };
 			const perModel: Array<{
 				model: string;
 				latencyMs: number;
@@ -75,25 +80,31 @@ export async function POST(req: NextRequest) {
 				topScore: number | null;
 				aiScore: number;
 				humanScore: number;
-				candidates: Array<{ label: string; score: number }>;
+				candidates: Array<ScoredCandidate>;
 				rawResult: unknown;
 				error?: string;
 				aiChunkScores?: number[];
 				humanChunkScores?: number[];
 			}> = [];
 
-			const flatten = (arr: any): Array<{ label: string; score: number }> => {
+			const isScoredCandidate = (obj: unknown): obj is ScoredCandidate => {
+				if (!obj || typeof obj !== "object") return false;
+				const maybe = obj as { label?: unknown; score?: unknown };
+				return typeof maybe.label === "string" && typeof maybe.score === "number";
+			};
+
+			const flatten = (arr: unknown): Array<ScoredCandidate> => {
 				if (!Array.isArray(arr)) return [];
-				const out: Array<{ label: string; score: number }> = [];
+				const out: Array<ScoredCandidate> = [];
 				for (const item of arr) {
 					if (Array.isArray(item)) {
 						for (const sub of item) {
-							if (sub && typeof sub === "object" && "label" in sub && "score" in sub) {
-								out.push({ label: String(sub.label), score: Number((sub as any).score) });
+							if (isScoredCandidate(sub)) {
+								out.push({ label: sub.label, score: sub.score });
 							}
 						}
-					} else if (item && typeof item === "object" && "label" in item && "score" in item) {
-						out.push({ label: String(item.label), score: Number((item as any).score) });
+					} else if (isScoredCandidate(item)) {
+						out.push({ label: item.label, score: item.score });
 					}
 				}
 				return out;
@@ -104,7 +115,7 @@ export async function POST(req: NextRequest) {
 				try {
 					const aiChunkScores: number[] = [];
 					const humanChunkScores: number[] = [];
-					let lastCandidates: Array<{ label: string; score: number }> = [];
+					let lastCandidates: Array<ScoredCandidate> = [];
 					let lastRaw: unknown = null;
 					for (const chunk of chunks) {
 						// Optionally allow a custom HF Inference Endpoint URL for models that fail on the public server
@@ -126,8 +137,8 @@ export async function POST(req: NextRequest) {
 								}),
 							});
 							result = await resp.json();
-						} else {
-							result = await (hf as any).textClassification({
+						} else if (hf) {
+							result = await hf.textClassification({
 								model,
 								inputs: chunk,
 								options: {
@@ -135,6 +146,8 @@ export async function POST(req: NextRequest) {
 									use_cache: process.env.DETECTOR_USE_CACHE === "true" ? true : false,
 								},
 							});
+						} else {
+							result = null;
 						}
 						lastRaw = result;
 						const candidates = flatten(result).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
@@ -193,7 +206,16 @@ export async function POST(req: NextRequest) {
 						aiChunkScores,
 						humanChunkScores,
 					});
-				} catch (err: any) {
+				} catch (err: unknown) {
+					let message = "Unknown error";
+					if (err instanceof Error) message = err.message;
+					else {
+						try {
+							message = String(err);
+						} catch {
+							// ignore
+						}
+					}
 					const latencyMs = Date.now() - started;
 					perModel.push({
 						model,
@@ -204,7 +226,7 @@ export async function POST(req: NextRequest) {
 						humanScore: 0,
 						candidates: [],
 						rawResult: null,
-						error: String(err?.message || err),
+						error: message,
 					});
 				}
 			}
@@ -235,8 +257,58 @@ export async function POST(req: NextRequest) {
 						: "Ensemble signals are mixed. This is a statistical estimate, not a cryptographic proof.";
 				const latencyMs = valid.reduce((s, r) => s + (r.latencyMs || 0), 0);
 
+				// Simple, tunable heuristic for short outreach-like phrasing
+				const computeSalesySuspicion = (t: string): number => {
+					const textLc = t.toLowerCase();
+					const phrases = [
+						"circling back",
+						"touching base",
+						"checking in",
+						"quick question",
+						"on your radar",
+						"open to a chat",
+						"would love to connect",
+						"curious if",
+						"actively looking to solve",
+						"challenge of",
+						"genuinely human",
+						"automated communication",
+						"scale",
+						"workflow",
+						"streamline",
+						"optimize",
+						"leverage",
+					];
+					let hits = 0;
+					for (const p of phrases) {
+						if (textLc.includes(p)) hits += 1;
+					}
+					// punctuation/rhetorical question bonus
+					const qm = (t.match(/\?/g) || []).length;
+					const lenBonus = t.length <= heuristicMaxLen ? 0.1 : 0;
+					const phraseScore = Math.min(1, hits / 4); // saturate after a few matches
+					const punctScore = Math.min(0.3, qm * 0.1);
+					return Math.max(0, Math.min(1, phraseScore + punctScore + lenBonus));
+				};
+				if (heuristicSalesy && text.length <= heuristicMaxLen && label === "likely_human") {
+					const suspicion = computeSalesySuspicion(text);
+					if (suspicion >= heuristicThreshold) {
+						label = "likely_ai";
+						const aiSide = Math.max(aggAi, maxChunkAi, suspicion * 0.9);
+						confidence = Math.max(confidence, Math.round(100 * aiSide));
+						explanation =
+							"Short outreach-like phrasing detected; leaning AI. This is a heuristic adjustment combined with model signals.";
+					}
+				}
+
 				// OpenAI tiebreaker: if HF is very confident it's human, cross-check with LLM
-				let tieBreaker: any = null;
+				type TieBreaker = {
+					provider: "openai";
+					label: "likely_human" | "likely_ai" | "uncertain";
+					confidence: number;
+					explanation: string;
+				} | null;
+				let tieBreaker: TieBreaker = null;
 				const shouldTiebreakHuman =
 					label === "likely_human" &&
 					(confidence >= tiebreakHumanConf || text.length <= tiebreakShortLen);
