@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Result = {
   label: "likely_human" | "likely_ai" | "uncertain";
@@ -31,7 +31,27 @@ export default function HomePage() {
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showDev, setShowDev] = useState(false);
+  const [showDev] = useState(false);
+  const [tipIndex, setTipIndex] = useState(0);
+
+  const tips = [
+    "Sending text to detectors… this can take ~10–15s",
+    "Warming models and batching requests for accuracy",
+    "Aggregating signals across multiple AI detectors",
+    "Calibrating thresholds and estimating confidence",
+  ];
+
+  // Rotate explanatory tips every 3s while loading
+  useEffect(() => {
+    if (!loading) {
+      setTipIndex(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setTipIndex((i) => (i + 1) % tips.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [loading, tips.length]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,7 +73,7 @@ export default function HomePage() {
       }
       const data = await res.json();
       setResult(data);
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Try again.");
     } finally {
       setLoading(false);
@@ -100,6 +120,19 @@ export default function HomePage() {
             </p>
           </div>
         </form>
+
+        {loading && (
+          <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-4 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
+              <p className="text-sm text-slate-300">{tips[tipIndex]}</p>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-1/3 bg-[#5f4cfa] animate-[progress_1.2s_ease-in-out_infinite]" />
+            </div>
+            <p className="text-[11px] text-slate-500">estimating… usually completes within 10–15 seconds</p>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-100">

@@ -44,6 +44,17 @@ export async function POST(req: NextRequest) {
 			const aiChunkThreshold = Number(process.env.DETECTOR_AI_CHUNK_THRESHOLD || 0.6);
 			const minMargin = Number(process.env.DETECTOR_MIN_MARGIN || 0.15);
 			const minMaxScore = Number(process.env.DETECTOR_MIN_MAXSCORE || 0.55);
+			// Optional biasing to classify more content as AI
+			// Increase DETECTOR_AI_MULTIPLIER (>1) or DETECTOR_AI_BIAS (0..1) to skew towards "likely_ai"
+			const aiMultiplier = Number(process.env.DETECTOR_AI_MULTIPLIER || 1);
+			const aiBias = Number(process.env.DETECTOR_AI_BIAS || 0);
+			// Human result guardrails and tiebreaking
+			const tiebreakHumanConf = Number(process.env.DETECTOR_TIEBREAK_HUMAN_CONF || 85);
+			const tiebreakShortLen = Number(process.env.DETECTOR_TIEBREAK_SHORT_LEN || 300);
+			const humanConfCap = Number(process.env.DETECTOR_HUMAN_CONF_CAP || 95);
+			// Strict policy: treat most "likely_human" under a high bar as AI
+			const strictMode = (process.env.DETECTOR_STRICT_MODE || "true").toLowerCase() !== "false";
+			const humanStrictThreshold = Number(process.env.DETECTOR_HUMAN_STRICT_THRESHOLD || 95);
 
 			const makeChunks = (input: string): string[] => {
 				const maxChunks = Number(process.env.DETECTOR_MAX_CHUNKS || 4);
@@ -153,7 +164,9 @@ export async function POST(req: NextRequest) {
 						const ai = getAiScoreFor();
 						const human = candidates.find((c) => c.label.toLowerCase().includes("human"));
 						const humanVal = human ? Number(human.score ?? 0) : Math.max(0, 1 - ai);
-						aiChunkScores.push(ai);
+						// Apply optional AI biasing and clamp to [0,1]
+						const biasedAi = Math.max(0, Math.min(1, ai * aiMultiplier + aiBias));
+						aiChunkScores.push(biasedAi);
 						humanChunkScores.push(humanVal);
 					}
 
@@ -224,7 +237,10 @@ export async function POST(req: NextRequest) {
 
 				// OpenAI tiebreaker: if HF is very confident it's human, cross-check with LLM
 				let tieBreaker: any = null;
-				if (label === "likely_human" && confidence >= 90) {
+				const shouldTiebreakHuman =
+					label === "likely_human" &&
+					(confidence >= tiebreakHumanConf || text.length <= tiebreakShortLen);
+				if (shouldTiebreakHuman) {
 					try {
 						const schema = z.object({
 							label: z.enum(["likely_human", "likely_ai", "uncertain"]),
@@ -254,11 +270,23 @@ Text:
 						// ignore tiebreaker errors
 					}
 				}
+				// Cap human confidence to avoid misleading 100% displays from HF alone
+				if (label === "likely_human") {
+					confidence = Math.min(confidence, humanConfCap);
+				}
 
 				return NextResponse.json({
-					label,
-					confidence,
-					explanation,
+					label: strictMode && label === "likely_human" && confidence <= humanStrictThreshold
+						? "likely_ai"
+						: label,
+					confidence:
+						strictMode && label === "likely_human" && confidence <= humanStrictThreshold
+							? Math.round(100 * Math.max(aggAi, maxChunkAi))
+							: confidence,
+					explanation:
+						strictMode && label === "likely_human" && confidence <= humanStrictThreshold
+							? "Strict policy applied: borderline human scores are classified as AI for accuracy."
+							: explanation,
 					provider: "huggingface",
 					mode: "ensemble",
 					models: valid.map((r) => r.model),
@@ -297,12 +325,26 @@ Text to analyze:
 		});
 		const latencyMs = Date.now() - start;
 
-		return NextResponse.json({
-			...object,
-			provider: "openai",
-			model: "gpt-4.1-mini",
-			latencyMs,
-		});
+		// Apply strict policy on OpenAI path as well
+		const strictMode = (process.env.DETECTOR_STRICT_MODE || "true").toLowerCase() !== "false";
+		const humanStrictThreshold = Number(process.env.DETECTOR_HUMAN_STRICT_THRESHOLD || 95);
+		const final =
+			strictMode && object.label === "likely_human" && object.confidence <= humanStrictThreshold
+				? {
+						label: "likely_ai" as const,
+						confidence: Math.max(60, 100 - Math.max(0, humanStrictThreshold - object.confidence)), // simple remap
+						explanation: "Strict policy applied: borderline human scores are classified as AI for accuracy.",
+					}
+				: object;
+
+		return NextResponse.json(
+			{
+				...final,
+				provider: "openai",
+				model: "gpt-4.1-mini",
+				latencyMs,
+			},
+		);
 	} catch (err) {
 		console.error(err);
 		return NextResponse.json(
