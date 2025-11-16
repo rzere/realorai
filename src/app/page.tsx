@@ -90,8 +90,8 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#050509] text-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-3xl space-y-8">
         <header className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-            realorai<span className="text-[#5f4cfa]">.net</span>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight ml-0.5 md:ml-1">
+            real or<span className="text-[#5f4cfa]"> ai?</span>
           </h1>
           <p className="text-sm md:text-base text-slate-400 max-w-xl">
             paste any text and we&apos;ll analyze whether it was written by a
@@ -100,12 +100,18 @@ export default function HomePage() {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <textarea
-            className="w-full min-h-[180px] rounded-xl bg-slate-900/70 border border-slate-700 px-4 py-3 text-sm md:text-base outline-none focus:border-[#5f4cfa] focus:ring-1 focus:ring-[#5f4cfa] resize-vertical"
-            placeholder="paste your text here..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
+          <div className="relative">
+            <textarea
+              className="w-full min-h-[180px] rounded-xl bg-slate-900/70 border border-slate-700 px-4 py-3 text-sm md:text-base outline-none focus:border-[#5f4cfa] focus:ring-1 focus:ring-[#5f4cfa] resize-vertical"
+              placeholder="paste your text here..."
+              value={text}
+              maxLength={3000}
+              onChange={(e) => setText(e.target.value.slice(0, 3000))}
+            />
+            <div className="pointer-events-none absolute bottom-2 right-3 text-[11px] text-slate-500">
+              {text.length}/3000
+            </div>
+          </div>
 
           <div className="flex items-center justify-between gap-3">
             <button
@@ -116,7 +122,7 @@ export default function HomePage() {
               {loading ? "analyzing..." : "analyze text"}
             </button>
             <p className="text-[11px] text-slate-500">
-              prototype only • ai vs human detection
+              v0.1 • nov 25
             </p>
           </div>
         </form>
@@ -233,12 +239,21 @@ export default function HomePage() {
           </section>
         )}
 
-        <footer className="pt-6 border-t border-slate-800 mt-4">
+        <footer className="pt-6 border-t border-slate-800 mt-4 relative">
           <p className="text-[11px] text-slate-500">
             <a href="https://leadmagnet.club" target="_blank" rel="noopener noreferrer" className="text-[#5f4cfa] hover:underline">
               leadmagnet.club
             </a>
           </p>
+          <a
+            href="https://leadshark.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="LeadShark"
+            className="absolute bottom-1 right-1 text-xl hover:scale-110 transition-transform"
+          >
+            🦈
+          </a>
         </footer>
         </div>
       </main>
