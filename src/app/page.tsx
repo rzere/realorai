@@ -240,19 +240,21 @@ export default function HomePage() {
         )}
 
         <footer className="pt-6 border-t border-slate-800 mt-4 relative">
-          <p className="text-[11px] text-slate-500">
-            <a href="https://leadmagnet.club" target="_blank" rel="noopener noreferrer" className="text-[#5f4cfa] hover:underline">
-              leadmagnet.club
+          <p className="text-[11px] text-slate-500 flex items-center gap-3">
+          2025 © 
+            <a href="https://reconsider.ai" target="_blank" rel="noopener noreferrer" className="text-[#5f4cfa] hover:underline">
+              reconsider.ai
             </a>
+              all rights reserved
           </p>
           <a
-            href="https://leadshark.io"
+            href="https://realorai.net"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="LeadShark"
+            aria-label="realorai.net"
             className="absolute bottom-1 right-1 text-xl hover:scale-110 transition-transform"
           >
-            🦈
+            <img src="/favicon.ico" alt="realorai.net" width={20} height={20} />
           </a>
         </footer>
         </div>
