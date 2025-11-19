@@ -90,9 +90,12 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#050509] text-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-3xl space-y-8">
         <header className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight ml-0.5 md:ml-1">
-            real or<span className="text-[#5f4cfa]"> ai?</span>
-          </h1>
+          <div className="flex items-center gap-3 ml-0.5 md:ml-1">
+            <img src="/favicon.ico" alt="realorai" className="w-8 h-8" />
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+              real or<span className="text-[#5f4cfa]"> ai?</span>
+            </h1>
+          </div>
           <p className="text-sm md:text-base text-slate-400 max-w-xl">
             paste any text and we&apos;ll analyze whether it was written by a
             real human or an ai

@@ -39,41 +39,41 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Environment variables (detector)
+## Environment variables
 
-Set these for local dev (e.g., in `.env.local`) and in Vercel Project Settings → Environment Variables:
-
-- DETECTOR_PROVIDER: "huggingface" or "openai". If omitted, the app prefers "huggingface" when HUGGINGFACE_API_KEY is present, else "openai".
-- HUGGINGFACE_API_KEY: Required to use Hugging Face models.
-- HF_MODEL_IDS: Comma-separated HF model IDs. Defaults include `openai-community/roberta-base-openai-detector`.
-- HF_ENDPOINT_URL: Optional custom Inference Endpoint URL if you use a private HF endpoint.
-- DETECTOR_USE_CACHE: Optional, "true" to enable HF server-side caching.
-- OPENAI_API_KEY: Required when using OpenAI provider and for tie-breaker cross-checks.
-
-Recommended setup to use the Roberta detector:
+Minimal setup (local `.env.local` and Vercel Project Settings → Environment Variables):
 
 ```bash
-DETECTOR_PROVIDER=huggingface
 HUGGINGFACE_API_KEY=your_hf_api_key
-HF_MODEL_IDS=openai-community/roberta-base-openai-detector,Hello-SimpleAI/chatgpt-detector-roberta,andreas122001/roberta-academic-detector,desklib/ai-text-detector-v1.01
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-Tuning knobs (optional):
+That’s all. The app auto-selects Hugging Face when `HUGGINGFACE_API_KEY` is present, and falls back to OpenAI otherwise. Default HF detectors include:
+- `openai-community/roberta-base-openai-detector`
+- `Hello-SimpleAI/chatgpt-detector-roberta`
 
-- DETECTOR_AI_CHUNK_THRESHOLD (default 0.6)
-- DETECTOR_MIN_MARGIN (default 0.15)
-- DETECTOR_MIN_MAXSCORE (default 0.55)
-- DETECTOR_AI_MULTIPLIER (default 1)
-- DETECTOR_AI_BIAS (default 0)
-- DETECTOR_TIEBREAK_HUMAN_CONF (default 85)
-- DETECTOR_TIEBREAK_SHORT_LEN (default 300)
-- DETECTOR_HUMAN_CONF_CAP (default 95)
-- DETECTOR_STRICT_MODE (default true)
-- DETECTOR_HUMAN_STRICT_THRESHOLD (default 95)
-- DETECTOR_HEURISTIC_SALESY (default true)
-- DETECTOR_HEURISTIC_THRESHOLD (default 0.5)
-- DETECTOR_HEURISTIC_MAX_LEN (default 400)
+Example `.env.local` (tuning and model selection):
+
+```bash
+DETECTOR_PROVIDER=huggingface
+
+DETECTOR_HEURISTIC_SALESY=true
+DETECTOR_HEURISTIC_THRESHOLD=0.55
+DETECTOR_HEURISTIC_MAX_LEN=320
+DETECTOR_STRICT_MODE=false
+DETECTOR_AI_CHUNK_THRESHOLD=0.69
+DETECTOR_MAX_CHUNKS=1
+DETECTOR_CHUNK_LEN=400
+DETECTOR_AI_MULTIPLIER=1.10
+DETECTOR_AI_BIAS=0.04
+DETECTOR_MIN_MARGIN=0.18
+DETECTOR_MIN_MAXSCORE=0.58
+DETECTOR_TIEBREAK_HUMAN_CONF=85
+DETECTOR_TIEBREAK_SHORT_LEN=260
+DETECTOR_HUMAN_CONF_CAP=92
+
+HF_MODEL_IDS=openai-community/roberta-base-openai-detector,Hello-SimpleAI/chatgpt-detector-roberta,andreas122001/roberta-academic-detector,desklib/ai-text-detector-v1.01
+``` 
 
 ## Privacy and data usage
 
