@@ -1,10 +1,14 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+[![License](https://img.shields.io/github/license/rzere/realorai?style=flat-square)](LICENSE)
+[![Repo License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![HF Model License (roberta-base-openai-detector)](https://img.shields.io/badge/HF%20model%20license-MIT-blue?style=flat-square)](https://huggingface.co/openai-community/roberta-base-openai-detector)
 
 ## About
 
 This project is maintained by the Reconsider.ai Team. It represents version v0.1 of our AI text detection service.
 
 ## Getting Started
+
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 First, run the development server:
 
