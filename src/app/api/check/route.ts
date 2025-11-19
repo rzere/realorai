@@ -33,10 +33,10 @@ export async function POST(req: NextRequest) {
 				.split(",")
 				.map((m) => m.trim())
 				.filter(Boolean);
-			const defaultModels = [
-				"Hello-SimpleAI/chatgpt-detector-roberta",
-				"andreas122001/roberta-academic-detector",
-				"desklib/ai-text-detector-v1.01",
+			// Simplified default models for now
+				const defaultModels = [
+				"openai-community/roberta-base-openai-detector",
+				"Hello-SimpleAI/chatgpt-detector-roberta"
 			];
 			const modelCandidates = envList.length > 0 ? envList : defaultModels;
 
