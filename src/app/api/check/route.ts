@@ -320,7 +320,7 @@ export async function POST(req: NextRequest) {
 							explanation: z.string().min(1),
 						});
 						const { object } = await generateObject({
-							model: openai("gpt-4.1-mini"),
+							model: openai("gpt-5.1-2025-11-13"),
 							schema,
 							temperature: 0.1,
 							prompt: `
@@ -381,7 +381,7 @@ Text:
 
 		const start = Date.now();
 		const { object } = await generateObject({
-			model: openai("gpt-4.1-mini"),
+			model: openai("gpt-5.1-2025-11-13"),
 			schema,
 			temperature: 0.2,
 			prompt: `
@@ -413,7 +413,7 @@ Text to analyze:
 			{
 				...final,
 				provider: "openai",
-				model: "gpt-4.1-mini",
+				model: "gpt-5.1-2025-11-13",
 				latencyMs,
 			},
 		);

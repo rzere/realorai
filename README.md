@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## About
+
+This project is maintained by the Reconsider.ai Team. It represents version v0.1 of our AI text detection service.
+
 ## Getting Started
 
 First, run the development server:
@@ -70,3 +74,23 @@ Tuning knobs (optional):
 - DETECTOR_HEURISTIC_SALESY (default true)
 - DETECTOR_HEURISTIC_THRESHOLD (default 0.5)
 - DETECTOR_HEURISTIC_MAX_LEN (default 400)
+
+## Privacy and data usage
+
+- The endpoint `api/check` may send submitted text to:
+  - Hugging Face Inference API for classification using models defined in `HF_MODEL_IDS`.
+  - OpenAI (model `gpt-5.1-2025-11-13`) for a tiebreaker classification in specific cases.
+- This app does not persist your submitted text; however, third‑party providers may log requests per their policies.
+- Configure providers and models via environment variables as documented above.
+
+## Acknowledgements
+
+- Uses Hugging Face Inference API and community models including:
+  - `openai-community/roberta-base-openai-detector` (MIT) — see the model page:
+    https://huggingface.co/openai-community/roberta-base-openai-detector/tree/main
+  - `Hello-SimpleAI/chatgpt-detector-roberta`
+- Built with Next.js and the Vercel AI SDK.
+
+## License
+
+This project is licensed under the MIT License — see `LICENSE` for details.
